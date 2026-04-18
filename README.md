@@ -128,3 +128,7 @@ Chart/graph integration
 📄 License
 
 Free to use and modify.
+
+🙌 Disclaimer
+
+ Use at your own risk. Always review scripts before running.
