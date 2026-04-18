@@ -1,0 +1,1246 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Web Excel — Editable, Sortable, Themed Table</title>
+
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css" />
+  <!-- <link rel="stylesheet" href="/static/tools/jquery.dataTables.min.css" /> -->
+  <style>
+    :root{
+      --bg:#ffffff;
+      --fg:#111827;
+      --muted:#6b7280;
+      --accent:#2563eb;
+      --danger:#dc2626;
+      --success:#059669;
+      --surface:#f8fafc;
+      --table-border:#e5e7eb;
+    }
+    [data-theme="dark"]{
+      --bg:#0b1220;
+      --fg:#e6eef8;
+      --muted:#9aa9bf;
+      --accent:#60a5fa;
+      --danger:#fca5a5;
+      --success:#4ade80;
+      --surface:#09111a;
+      --table-border:#172033;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;
+      background:var(--bg);
+      color:var(--fg);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      font-size:14px;
+    }
+
+    header{
+      padding:18px 20px;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      border-bottom:1px solid var(--table-border);
+      background:linear-gradient(180deg, rgba(0,0,0,0.02), transparent);
+    }
+    header h1{
+      margin:0;
+      font-size:18px;
+      font-weight:600;
+      flex:1 1 auto;
+    }
+
+    .controls{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .controls input[type="file"]{ font-size:13px; }
+    .controls .small{ width:72px; padding:6px; border-radius:6px; border:1px solid var(--table-border); background:transparent; color:var(--fg); }
+
+    button{
+      background:var(--accent);
+      color:white;
+      border:0;
+      padding:8px 10px;
+      border-radius:6px;
+      cursor:pointer;
+      font-weight:600;
+    }
+    button.ghost{
+      background:transparent;
+      color:var(--muted);
+      border:1px solid var(--table-border);
+    }
+    button:disabled{ opacity:0.6; cursor:not-allowed; }
+
+    .status{
+      margin-left:8px;
+      color:var(--muted);
+      font-size:13px;
+    }
+
+    main{
+      padding:16px 20px;
+    }
+
+    table.dataTable{
+      background:var(--surface);
+      border:1px solid var(--table-border);
+      width:100%;
+      border-collapse:collapse;
+    }
+    table.dataTable thead th{
+      font-weight:700;
+      border-bottom:1px solid var(--table-border);
+      padding:8px;
+      text-align:left;
+    }
+    table.dataTable tbody td{
+      padding:8px;
+      border-bottom:1px dashed var(--table-border);
+      vertical-align:middle;
+    }
+    tr.selected{ outline:3px solid rgba(37,99,235,0.12); }
+    tr.highlight{ background:rgba(37,99,235,0.04); }
+
+    td.amt{ text-align:right; font-variant-numeric:tabular-nums; }
+
+    .badge{ display:inline-block; padding:6px 8px; background:var(--surface); border-radius:6px; border:1px solid var(--table-border); color:var(--muted); margin-right:8px; }
+    .totalsWrap{ margin-top:12px; display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+
+    input.cell{
+      width:100%;
+      box-sizing:border-box;
+      border:1px solid transparent;
+      padding:6px 8px;
+      border-radius:6px;
+      background:transparent;
+      color:inherit;
+    }
+    input.cell:focus{
+      outline:2px solid rgba(37,99,235,0.18);
+      border-color:rgba(37,99,235,0.18);
+      background:rgba(255,255,255,0.02);
+    }
+
+    /* Existing */
+    .cat-Groceries{ background:linear-gradient(90deg,#ecfccb,#bbf7d0); }
+    .cat-Gas{ background:linear-gradient(90deg,#fee2e2,#fecaca); }
+    .cat-Shopping{ background:linear-gradient(90deg,#ede9fe,#ddd6fe); }
+    
+    /* New categories */
+    .cat-FoodDrink{ background:linear-gradient(90deg,#ffedd5,#fed7aa); }
+    .cat-BillsUtilities{ background:linear-gradient(90deg,#e0f2fe,#bae6fd); }
+    .cat-Personal{ background:linear-gradient(90deg,#fce7f3,#fbcfe8); }
+    .cat-Education{ background:linear-gradient(90deg,#e0e7ff,#c7d2fe); }
+    .cat-Entertainment{ background:linear-gradient(90deg,#fef9c3,#fde68a); }
+    .cat-HealthWellness{ background:linear-gradient(90deg,#dcfce7,#bbf7d0); }
+    .cat-ProfessionalServices{ background:linear-gradient(90deg,#f3f4f6,#e5e7eb); }
+	.cat-Travel{ background:linear-gradient(90deg,#cffafe,#a5f3fc); }
+    tfoot th{ padding:10px; text-align:right; font-weight:700; }
+    tfoot td{ font-weight:700; text-align:right; padding:10px; }
+
+    .sr-only{ position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0; }
+    @media (max-width:720px){
+      header{ flex-direction:column; align-items:stretch; gap:10px; }
+      .controls{ justify-content:flex-start; }
+      table.dataTable{ font-size:13px; }
+    }
+
+    /* Help modal */
+    .modal{
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,0.35); z-index:9999;
+    }
+    .modal .panel{
+      background:var(--surface); color:var(--fg); padding:18px; border-radius:10px; width:480px; max-width:95%; box-shadow:0 10px 30px rgba(0,0,0,0.2);
+    }
+    .ks{ font-weight:700; background:rgba(0,0,0,0.06); padding:2px 8px; border-radius:6px; margin-left:6px; display:inline-block; }
+
+    /* selection column & numbering */
+    table.dataTable thead th:first-child,
+    table.dataTable tbody td:first-child { width:40px; text-align:center; }
+    table.dataTable thead th:nth-child(2),
+    table.dataTable tbody td:nth-child(2) { width:56px; text-align:center; color:var(--muted); }
+    input.row-check{ width:18px; height:18px; cursor:pointer; }
+    tr.selected td { background: rgba(37,99,235,0.04); }
+  </style>
+</head>
+<body data-theme="light">
+
+  <header>
+    <h1>Editable, Sortable Web Sheet</h1>
+    <div class="controls" role="toolbar" aria-label="Table controls">
+      <label class="sr-only" for="fileInput">Select file</label>
+      <!-- <input id="fileInput" type="file" accept=".txt,.csv,.tsv" /> -->
+	  <input id="fileInput" type="file" accept="*/*" title="You can select any file (.txt, .csv, .tsv, etc.)" />
+      <button id="processFile" type="button">Process File</button>
+      <button id="clearTable" class="ghost" type="button">Clear</button>
+      <button id="exportCsv" type="button">Export CSV</button>
+	        <button id="exportPdf" type="button">Export PDF</button>
+			      <button id="exportDoc" type="button">Export DOC</button>
+      <button id="selectAll" type="button">Select All</button>
+	  <button id="deselectAll" type="button">Deselect All</button>
+      <button id="selectHalf" type="button">Select 50%</button>
+	        <label style="display:flex;align-items:center;gap:6px;">
+        <input id="deterministicHalf" type="checkbox" /> First 50%
+      </label>
+      <label for="selectCount" class="sr-only">Select count</label>
+      <input id="selectCount" class="small" type="number" min="1" placeholder="N" />
+      <button id="selectN" type="button">Select N</button>
+<button id="addRow" type="button">+ Row</button>
+<button id="deleteSelected" type="button">Delete Rows</button>
+
+<button id="addColumn" type="button">+ Column</button>
+<button id="deleteColumn" type="button">Remove Last Column</button>
+      <button id="themeToggle" type="button">Toggle Theme</button>
+      <button id="ksHelp" class="ghost" type="button">Shortcuts</button>
+      <span class="status" id="status" aria-live="polite">Ready</span>
+    </div>
+  </header>
+
+  <main>
+    <table id="dataTable" class="display stripe" aria-describedby="tableDesc">
+      <caption id="tableDesc" class="sr-only">Transactions table with editable cells and totals</caption>
+      <thead>
+        <tr>
+          <th><input id="headerSelect" type="checkbox" aria-label="Select all rows"></th>
+          <th>#</th>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Category</th>
+          <th>Amount</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr>
+          <th colspan="5" style="text-align:right">Total:</th>
+          <th id="totalAmount" class="amt">$0.00</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="totalsWrap" aria-hidden="false" style="margin-top:12px">
+      <div class="badge" id="rowCount">Rows: 0</div>
+      <div class="totalRow" id="positiveSum">Positive: $0.00</div>
+      <div class="totalRow" id="negativeSum">Negative: $0.00</div>
+      <div class="totalRow" id="selectedSum">Selected: $0.00</div>
+    </div>
+  </main>
+
+  <div id="modalShortcuts" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="panel">
+      <h3 id="modalTitle">Keyboard Shortcuts</h3>
+      <p><span class="ks">Ctrl/⌘ + A</span> — Select All rows</p>
+      <p><span class="ks">Ctrl/⌘ + C</span> — Deselect All rows</p>
+      <p><span class="ks">Ctrl/⌘ + H</span> — Select 50% (random or first, depending on checkbox)</p>
+      <p><span class="ks">Ctrl/⌘ + N</span> — Focus Select N input</p>
+      <p><span class="ks">Ctrl/⌘ + E</span> — Export CSV</p>
+      <p><span class="ks">Ctrl/⌘ + T</span> — Toggle theme</p>
+      <p style="margin-top:8px;font-size:13px;color:var(--muted)">To change these shortcuts, edit the 'KEYBINDS' object in the script (near top) — see comments there.</p>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px;">
+        <button id="closeModal" type="button" class="ghost">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+  <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+
+  <script>
+    // ---- KEYBIND CONFIG ----
+    // To change keyboard bindings, edit the values in KEYBINDS below.
+    // Use uppercase single letters. Modifiers: ctrlOrCmd is used for cross-platform.
+    const KEYBINDS = {
+      selectAll: 'A',    // Ctrl/Cmd + A
+      deselectAll: 'C',    // Ctrl/Cmd + C
+      selectHalf: 'H',   // Ctrl/Cmd + H
+      focusN: 'N',       // Ctrl/Cmd + N
+      exportCsv: 'E',    // Ctrl/Cmd + E
+      toggleTheme: 'T'   // Ctrl/Cmd + T
+    };
+    // ------------------------
+
+    let dt = null;
+    let rowsData = [];
+    const selectedRows = new Set();
+    let lastCheckedIndex = null;
+
+    function setStatus(msg){
+      const el = document.getElementById('status');
+      if (el) el.textContent = msg;
+    }
+
+    function escapeHtml(s){
+      if (s == null) return '';
+      return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function parseAmountRaw(s){
+      if (s == null) return 0;
+      s = String(s).trim();
+      if (s === '') return 0;
+      const paren = /^\((.*)\)$/.exec(s);
+      if (paren) s = '-' + paren[1];
+      s = s.replace(/[^\d.\-]/g,'');
+      const n = parseFloat(s);
+      return isNaN(n) ? 0 : n;
+    }
+
+    function formatCurrency(n){
+      if (n == null || n === '') return '';
+      const num = Number(n) || 0;
+      const sign = num < 0 ? '-' : '';
+      const abs = Math.abs(num).toFixed(2);
+      return sign + '$' + Number(abs).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+    }
+
+    function parseDateFriendly(s){
+      if (!s) return '';
+      s = String(s).trim();
+      const direct = new Date(s);
+      if (isFinite(direct)) {
+        const y = direct.getFullYear();
+        const m = String(direct.getMonth()+1).padStart(2,'0');
+        const d = String(direct.getDate()).padStart(2,'0');
+        return `${y}-${m}-${d}`;
+      }
+      const parts = s.split(/[\/\-\.,\s]+/).filter(Boolean).map(x => x.replace(/\D/g,''));
+      if (parts.length >= 3){
+        let a = new Date(`${parts[0]}/${parts[1]}/${parts[2]}`);
+        if (isFinite(a)) return `${a.getFullYear()}-${String(a.getMonth()+1).padStart(2,'0')}-${String(a.getDate()).padStart(2,'0')}`;
+        let b = new Date(`${parts[1]}/${parts[0]}/${parts[2]}`);
+        if (isFinite(b)) return `${b.getFullYear()}-${String(b.getMonth()+1).padStart(2,'0')}-${String(b.getDate()).padStart(2,'0')}`;
+      }
+      return s;
+    }
+
+    function categoryClass(cat){
+      if(!cat) return '';
+      const c = cat.toLowerCase();
+    
+      if (c.includes('groc')) return 'cat-Groceries';
+      if (c.includes('gas')) return 'cat-Gas';
+      if (c.includes('shop')) return 'cat-Shopping';
+    
+      if (c.includes('food') || c.includes('drink')) return 'cat-FoodDrink';
+      if (c.includes('bill') || c.includes('util')) return 'cat-BillsUtilities';
+      if (c.includes('personal')) return 'cat-Personal';
+      if (c.includes('education')) return 'cat-Education';
+      if (c.includes('entertain')) return 'cat-Entertainment';
+      if (c.includes('health') || c.includes('well')) return 'cat-HealthWellness';
+      if (c.includes('professional') || c.includes('service')) return 'cat-ProfessionalServices';
+      if (c.includes('travel')) return 'cat-Travel';
+      return '';
+    }
+
+
+    function recalcTotals(){
+      let total = 0, pos = 0, neg = 0;
+      rowsData.forEach(r => {
+        const v = Number(parseFloat(r.amount) || 0);
+        total += v;
+        if (v >= 0) pos += v; else neg += v;
+      });
+
+      const totalEl = document.getElementById('totalAmount');
+      if (totalEl) totalEl.textContent = formatCurrency(total);
+
+      const posEl = document.getElementById('positiveSum');
+      if (posEl) posEl.textContent = 'Positive: ' + formatCurrency(pos);
+
+      const negEl = document.getElementById('negativeSum');
+      if (negEl) negEl.textContent = 'Negative: ' + formatCurrency(neg);
+
+      const rowEl = document.getElementById('rowCount');
+      if (rowEl) rowEl.textContent = 'Rows: ' + rowsData.length;
+
+      if (dt){
+        dt.rows().every(function(){
+          const node = this.node();
+          if (!node) return;
+          const idx = Number(node.dataset.index);
+          if (!Number.isNaN(idx) && rowsData[idx]){
+            const value = Number(parseFloat(rowsData[idx].amount) || 0);
+            const amtCell = node.querySelector('td.amt');
+            if (amtCell) amtCell.setAttribute('data-order', String(value));
+          }
+        });
+        dt.draw(false);
+      }
+      updateSelectedDisplay();
+      updateHeaderCheckbox();
+    }
+
+    function updateSelectedDisplay(){
+      let sum = 0;
+      for (const idx of selectedRows){
+        const r = rowsData[idx];
+        if (r) sum += Number(parseFloat(r.amount) || 0);
+      }
+      const el = document.getElementById('selectedSum');
+      if (el) el.textContent = 'Selected: ' + formatCurrency(sum);
+    }
+
+    function clearSelection(){
+      selectedRows.clear();
+      document.querySelectorAll('#dataTable tbody tr.selected').forEach(tr => tr.classList.remove('selected'));
+      document.querySelectorAll('input.row-check').forEach(cb => cb.checked = false);
+      updateSelectedDisplay();
+      updateHeaderCheckbox();
+    }
+
+    function selectAllRows(){
+      clearSelection();
+      rowsData.forEach((_, idx) => {
+        selectedRows.add(idx);
+        const tr = document.querySelector(`#dataTable tbody tr[data-index="${idx}"]`);
+        if (tr) tr.classList.add('selected');
+      });
+      document.querySelectorAll('input.row-check').forEach(cb => cb.checked = true);
+      updateSelectedDisplay();
+      updateHeaderCheckbox();
+    }
+
+    function deselectAll() {
+      // Clear the selection set
+      selectedRows.clear();
+    
+      // Remove 'selected' class from all rows
+      rowsData.forEach((_, idx) => {
+        const tr = document.querySelector(`#dataTable tbody tr[data-index="${idx}"]`);
+        if (tr) tr.classList.remove('selected');
+      });
+    
+      // Uncheck all row checkboxes
+      document.querySelectorAll('input.row-check').forEach(cb => cb.checked = false);
+    
+      // Update any UI elements that show selected rows count or header checkbox
+      updateSelectedDisplay();
+      updateHeaderCheckbox();
+    }
+    function selectFirstN(n){
+      clearSelection();
+      if (!Number.isInteger(n) || n <= 0) return;
+      const max = Math.min(n, rowsData.length);
+      for (let i = 0; i < max; i++){
+        selectedRows.add(i);
+        const tr = document.querySelector(`#dataTable tbody tr[data-index="${i}"]`);
+        if (tr) tr.classList.add('selected');
+        const cb = document.querySelector(`input.row-check[data-index="${i}"]`);
+        if (cb) cb.checked = true;
+      }
+      updateSelectedDisplay();
+      updateHeaderCheckbox();
+    }
+
+    function selectRandomN(n){
+      clearSelection();
+      if (!Number.isInteger(n) || n <= 0) return;
+      const indices = rowsData.map((_,i)=>i);
+      for (let i = indices.length -1; i>0; i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+      }
+      const max = Math.min(n, indices.length);
+      for (let i=0;i<max;i++){
+        const idx = indices[i];
+        selectedRows.add(idx);
+        const tr = document.querySelector(`#dataTable tbody tr[data-index="${idx}"]`);
+        if (tr) tr.classList.add('selected');
+        const cb = document.querySelector(`input.row-check[data-index="${idx}"]`);
+        if (cb) cb.checked = true;
+      }
+      updateSelectedDisplay();
+      updateHeaderCheckbox();
+    }
+
+    function selectFraction(fraction, deterministic=false){
+      if (rowsData.length === 0) return;
+      const count = Math.max(1, Math.round(rowsData.length * fraction));
+      if (deterministic) selectFirstN(count);
+      else selectRandomN(count);
+    }
+
+    function toggleRowSelection(rowEl){
+      const idx = Number(rowEl.dataset.index);
+      if (Number.isNaN(idx)) return;
+      if (selectedRows.has(idx)){
+        selectedRows.delete(idx);
+        rowEl.classList.remove('selected');
+        const cb = rowEl.querySelector('input.row-check');
+        if (cb) cb.checked = false;
+      } else {
+        selectedRows.add(idx);
+        rowEl.classList.add('selected');
+        const cb = rowEl.querySelector('input.row-check');
+        if (cb) cb.checked = true;
+      }
+      updateSelectedDisplay();
+      updateHeaderCheckbox();
+    }
+
+    function renderTableBody(){
+      const tbody = document.querySelector('#dataTable tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      rowsData.forEach((r, i) => {
+        const tr = document.createElement('tr');
+        tr.dataset.index = String(i);
+
+        // selection checkbox column
+        const tdSel = document.createElement('td');
+        tdSel.innerHTML = `<input class="row-check" type="checkbox" data-index="${i}" aria-label="Select row ${i+1}">`;
+        tdSel.style.textAlign = 'center';
+        tr.appendChild(tdSel);
+
+        // row number column
+        const tdNum = document.createElement('td');
+        tdNum.className = 'row-num';
+        tdNum.textContent = String(i+1);
+        tr.appendChild(tdNum);
+
+        const tdDate = document.createElement('td');
+        tdDate.innerHTML = `<input class="cell" data-field="date" aria-label="Date" value="${escapeHtml(r.date || '')}">`;
+        tr.appendChild(tdDate);
+
+        const tdDesc = document.createElement('td');
+        tdDesc.innerHTML = `<input class="cell" data-field="description" aria-label="Description" value="${escapeHtml(r.description || '')}">`;
+        tr.appendChild(tdDesc);
+
+        const tdCat = document.createElement('td');
+        tdCat.className = categoryClass(r.category);
+        tdCat.innerHTML = `<input class="cell" data-field="category" aria-label="Category" value="${escapeHtml(r.category || '')}">`;
+        tr.appendChild(tdCat);
+
+        const tdAmt = document.createElement('td');
+        tdAmt.className = 'amt';
+        const displayAmt = formatCurrency(r.amount);
+        tdAmt.setAttribute('data-order', String(Number(parseFloat(r.amount)||0)));
+        tdAmt.innerHTML = `<input class="cell" data-field="amount" aria-label="Amount" value="${escapeHtml(displayAmt)}">`;
+        tr.appendChild(tdAmt);
+
+        const tdAct = document.createElement('td');
+        tdAct.innerHTML = `<input class="cell" data-field="action" aria-label="Action" value="${escapeHtml(r.action || '')}">`;
+        tr.appendChild(tdAct);
+
+        if (selectedRows.has(i)){
+          tr.classList.add('selected');
+        }
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateHeaderCheckbox(){
+      const header = document.getElementById('headerSelect');
+      if (!header) return;
+      const total = rowsData.length;
+      if (total === 0){ header.checked = false; header.indeterminate = false; return; }
+      const checked = selectedRows.size;
+      header.checked = (checked === total);
+      header.indeterminate = (checked > 0 && checked < total);
+    }
+
+    function syncCheckboxesToRows(){
+      document.querySelectorAll('#dataTable tbody tr').forEach(tr => {
+        const idx = Number(tr.dataset.index);
+        const cb = tr.querySelector('input.row-check');
+        if (selectedRows.has(idx)){
+          tr.classList.add('selected');
+          if (cb) cb.checked = true;
+        } else {
+          tr.classList.remove('selected');
+          if (cb) cb.checked = false;
+        }
+        const numCell = tr.querySelector('.row-num');
+        if (numCell) numCell.textContent = String(idx + 1);
+      });
+      updateHeaderCheckbox();
+    }
+
+    function attachDrawListener(){
+      if (!dt) return;
+      dt.off('draw.selectSync');
+      dt.on('draw.selectSync', function(){
+        syncCheckboxesToRows();
+      });
+    }
+
+    function initDataTable(){
+      if (dt){
+        dt.destroy();
+        dt = null;
+      }
+
+      renderTableBody();
+
+      dt = $('#dataTable').DataTable({
+        retrieve: true,
+        deferRender: true,
+        paging: true,
+        searching: true,
+        pageLength: 10,
+        order: [[2,'desc']], // date column moved to index 2
+        columnDefs: [
+          { targets: 5, className: 'dt-body-right' }, // amount column (index 5)
+          {
+            targets: '_all',
+            render: function(data, type, row, meta){
+              if (type !== 'display'){
+                const cell = meta.settings.aoData[meta.row].nTr.children[meta.col];
+                if (cell){
+                  const input = cell.querySelector('input[data-field]');
+                  if (input){
+                    const field = input.dataset.field;
+                    if (field === 'amount'){
+                      return Number(parseAmountRaw(input.value));
+                    }
+                    return input.value;
+                  }
+                }
+              }
+              return data;
+            }
+          }
+        ]
+      });
+
+      const $tbody = $('#dataTable tbody');
+
+      $tbody.off('click').on('click','tr', function(e){
+        const tgt = e.target;
+        const idx = Number(this.dataset.index);
+        const rowCb = this.querySelector('input.row-check');
+      
+        if (tgt.classList.contains('row-check')) {
+          // checkbox clicked: update selectedRows accordingly
+          if (rowCb.checked){
+            selectedRows.add(idx);
+            this.classList.add('selected');
+          } else {
+            selectedRows.delete(idx);
+            this.classList.remove('selected');
+          }
+          updateHeaderCheckbox();
+          updateSelectedDisplay();
+          lastCheckedIndex = idx;
+          return; // do not toggle row
+        }
+      
+        // clicking elsewhere in row
+        toggleRowSelection(this);
+        $('#dataTable tbody tr').removeClass('highlight');
+        $(this).addClass('highlight');
+      
+        // sync checkbox to selectedRows
+        if (rowCb) rowCb.checked = selectedRows.has(idx);
+        updateHeaderCheckbox();
+      });
+
+
+      $tbody.off('input').on('input','input[data-field]', function(){
+        const field = this.dataset.field;
+        const tr = $(this).closest('tr')[0];
+        const idx = Number(tr.dataset.index);
+        if (!rowsData[idx]) return;
+        const rawVal = this.value;
+
+        if (field === 'amount'){
+          const parsed = parseAmountRaw(rawVal);
+          rowsData[idx].amount = parsed;
+          tr.querySelector('td.amt').setAttribute('data-order', String(parsed));
+        } else if (field === 'date'){
+          rowsData[idx].date = parseDateFriendly(rawVal);
+        } else {
+          rowsData[idx][field] = rawVal;
+        }
+
+        const catCell = tr.children[4];
+        if (catCell) catCell.className = categoryClass(rowsData[idx].category);
+
+        recalcTotals();
+      });
+
+      $tbody.off('blur','input[data-field="amount"]').on('blur','input[data-field="amount"]', function(){
+        const tr = $(this).closest('tr')[0];
+        const idx = Number(tr.dataset.index);
+        if (!rowsData[idx]) return;
+        this.value = formatCurrency(rowsData[idx].amount);
+      });
+
+      $tbody.off('blur','input[data-field="date"]').on('blur','input[data-field="date"]', function(){
+        const tr = $(this).closest('tr')[0];
+        const idx = Number(tr.dataset.index);
+        if (!rowsData[idx]) return;
+        this.value = rowsData[idx].date || parseDateFriendly(this.value);
+        rowsData[idx].date = this.value;
+      });
+
+      syncCheckboxesToRows();
+      attachDrawListener();
+    }
+
+    function refreshTable(){ initDataTable(); recalcTotals(); }
+
+    function exportCsv(){
+      if (!rowsData.length) { setStatus('No rows to export'); return; }
+      const cols = ['Date','Description','Category','Amount','Action'];
+      const lines = [cols.join(',')];
+      rowsData.forEach(r => {
+        const quoted = v => `"${String(v == null ? '' : String(v)).replace(/"/g,'""')}"`;
+        lines.push([
+          quoted(r.date || ''),
+          quoted(r.description || ''),
+          quoted(r.category || ''),
+          quoted((Number(r.amount)||0).toFixed(2)),
+          quoted(r.action || '')
+        ].join(','));
+      });
+      const csv = lines.join('\r\n');
+      const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'export.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setStatus('CSV exported');
+    }
+    function exportPdf(){
+    if (!rowsData.length) { setStatus('No rows to export'); return; }
+    const html = buildTableHtml();
+    // create container
+    const container = document.createElement('div');
+    container.style.padding = '10px';
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    // html2pdf options
+    const opt = {
+    margin:       10,
+    filename:     'export.pdf',
+    image:        { type: 'jpeg', quality: 0.98 },
+    html2canvas:  { scale: 2, useCORS: true },
+    jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(container).save().then(() => {
+    container.remove();
+    setStatus('PDF exported');
+    }).catch(err => {
+    container.remove();
+    console.error(err);
+    setStatus('PDF export failed');
+    });
+    }
+    function exportDoc() {
+        if (!rowsData.length) { 
+            setStatus('No rows to export'); 
+            return; 
+        }
+    
+        // Build the table HTML
+        const html = buildTableHtml();
+    
+        // Word-compatible HTML wrapper
+        const header = 
+            '<!DOCTYPE html>' +
+            '<html lang="en">' +
+            '<head>' +
+            '<meta charset="UTF-8">' +
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+            '<title>Export</title>' +
+            '<style>' +
+            'table { width: 100%; border-collapse: collapse; }' +
+            'th, td { border: 1px solid black; padding: 8px; text-align: left; }' +
+            'th { background-color: #f4f4f4; }' +
+            '</style>' +
+            '</head>' +
+            '<body>' +
+            '<h2>Exported Data</h2>' +
+            '<table>' +
+            '<thead>' +
+            '<tr>' +
+            '<th>Date</th>' +
+            '<th>Description</th>' +
+            '<th>Category</th>' +
+            '<th>Amount</th>' +
+            '<th>Action</th>' +
+            '</tr>' +
+            '</thead>' +
+            '<tbody>';
+    
+        const footer = 
+            '</tbody>' +
+            '</table>' +
+            '</body>' +
+            '</html>';
+    
+        // Combine header, table, and footer into one full HTML document
+        const fullHtml = header + html + footer;
+    
+        // Create a blob for the DOC file
+        const blob = new Blob([fullHtml], { type: 'application/msword' });
+    
+        // Create a download link
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'export.doc';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        
+        // Revoke the ObjectURL
+        URL.revokeObjectURL(url);
+        
+        // Set the status
+        setStatus('DOC exported');
+    }
+
+    function clearTable(){
+      rowsData = [];
+      selectedRows.clear();
+      refreshTable();
+      setStatus('Table cleared');
+    }
+
+    function parseText(text){
+      if (!text) return [];
+      const norm = text.replace(/\r/g,'');
+      const rawLines = norm.split('\n');
+      const lines = rawLines.map(l=>l.trim()).filter(Boolean);
+      if (!lines.length) return [];
+
+      const first = lines[0];
+      const headerParts = first.split(',').map(h=>h.trim().toLowerCase());
+      const isHeader = headerParts.some(h => /(date|transaction|description|amount|category|memo|notes|payee)/i.test(h));
+
+      function splitCsvLine(line){
+        const out = [];
+        let cur = '';
+        let inQuote = false;
+        for (let i=0;i<line.length;i++){
+          const ch = line[i];
+          if (ch === '"'){
+            if (inQuote && line[i+1] === '"'){ cur += '"'; i++; continue; }
+            inQuote = !inQuote;
+            continue;
+          }
+          if (ch === ',' && !inQuote){ out.push(cur); cur = ''; continue; }
+          cur += ch;
+        }
+        out.push(cur);
+        return out;
+      }
+
+      const header = isHeader ? headerParts : null;
+      function idxOfAny(arr){
+        if (!header) return -1;
+        for (const name of arr){
+          const i = header.findIndex(h => h === name);
+          if (i >= 0) return i;
+        }
+        return -1;
+      }
+
+      const dateIdx = idxOfAny(['transaction date','post date','date']);
+      const descIdx = idxOfAny(['description','payee','merchant','details']);
+      const catIdx = idxOfAny(['category']);
+      const amtIdx = idxOfAny(['amount','amount (dr/cr)','amount (cr/dr)']);
+      const memoIdx = idxOfAny(['memo','notes','memo/notes']);
+
+      const out = [];
+      const start = isHeader ? 1 : 0;
+      for (let i = start; i < lines.length; i++){
+        const cols = splitCsvLine(lines[i]);
+        if (cols.length === 0) continue;
+        let date='', description='', category='', amount=0, action='';
+        if (isHeader){
+          date = (dateIdx >=0 ? cols[dateIdx] : cols[0]) || '';
+          description = (descIdx >=0 ? cols[descIdx] : cols[1] || cols[2]) || '';
+          category = (catIdx >=0 ? cols[catIdx] : cols[2] || '') || '';
+          amount = (amtIdx >=0 ? cols[amtIdx] : cols[3] || cols[4]) || '';
+          action = (memoIdx >=0 ? cols[memoIdx] : cols[4] || cols[5] || '') || '';
+        } else {
+          date = cols[0] || '';
+          description = cols[1] || cols[2] || '';
+          category = cols[2] || cols[3] || '';
+          amount = cols[3] || cols[4] || '';
+          action = cols[4] || cols[5] || '';
+        }
+
+        out.push({
+          date: parseDateFriendly(date),
+          description: (description||'').trim(),
+          category: (category||'').trim(),
+          amount: parseAmountRaw(amount),
+          action: (action||'').trim()
+        });
+      }
+      return out;
+    }
+
+    // UI bindings
+    document.getElementById('processFile').addEventListener('click', function(){
+      const f = document.getElementById('fileInput').files[0];
+      if (!f){ setStatus('Select a .txt, .csv or .tsv file'); return; }
+      const reader = new FileReader();
+      reader.onload = function(e){
+        try {
+          const txt = e.target.result;
+          const parsed = parseText(txt);
+          rowsData = parsed;
+          selectedRows.clear();
+          refreshTable();
+          setStatus('File processed: ' + rowsData.length + ' rows');
+        } catch (err){
+          console.error(err);
+          setStatus('Error parsing file');
+        }
+      };
+      reader.onerror = function(){ setStatus('Failed to read file'); };
+      reader.readAsText(f);
+    });
+    document.getElementById('exportPdf').addEventListener('click', exportPdf); 
+    document.getElementById('exportDoc').addEventListener('click', exportDoc);
+    document.getElementById('exportCsv').addEventListener('click', exportCsv);
+    document.getElementById('clearTable').addEventListener('click', clearTable);
+    document.getElementById('deselectAll').addEventListener('click', deselectAll);
+    document.getElementById('selectAll').addEventListener('click', selectAllRows);
+    document.getElementById('selectHalf').addEventListener('click', function(){
+      const det = document.getElementById('deterministicHalf').checked;
+      selectFraction(0.5, det);
+    });
+    document.getElementById('selectN').addEventListener('click', function(){
+      const n = Number(document.getElementById('selectCount').value);
+      selectFirstN(Math.max(0, Math.floor(n)));
+    });
+
+    // header checkbox click handler
+    document.addEventListener('click', function(e){
+      const h = e.target;
+      if (h && h.id === 'headerSelect'){
+        if (h.checked){
+          selectAllRows();
+        } else {
+          clearSelection();
+          updateHeaderCheckbox();
+        }
+      }
+    });
+
+    // row checkbox click with shift-range support
+    document.addEventListener('click', function(e){
+      const cb = e.target && e.target.classList && e.target.classList.contains('row-check') ? e.target : null;
+      if (!cb) return;
+      const idx = Number(cb.dataset.index);
+      if (Number.isNaN(idx)) return;
+
+      if (e.shiftKey && lastCheckedIndex != null){
+        const start = Math.min(lastCheckedIndex, idx);
+        const end = Math.max(lastCheckedIndex, idx);
+        for (let i = start; i <= end; i++){
+          selectedRows.add(i);
+          const tr = document.querySelector(`#dataTable tbody tr[data-index="${i}"]`);
+          if (tr) tr.classList.add('selected');
+          const cbx = document.querySelector(`input.row-check[data-index="${i}"]`);
+          if (cbx) cbx.checked = true;
+        }
+      } else {
+        if (cb.checked){
+          selectedRows.add(idx);
+          const tr = document.querySelector(`#dataTable tbody tr[data-index="${idx}"]`);
+          if (tr) tr.classList.add('selected');
+        } else {
+          selectedRows.delete(idx);
+          const tr = document.querySelector(`#dataTable tbody tr[data-index="${idx}"]`);
+          if (tr) tr.classList.remove('selected');
+        }
+      }
+
+      lastCheckedIndex = idx;
+      updateSelectedDisplay();
+      updateHeaderCheckbox();
+    });
+
+    // Theme toggle & persistence
+    const themeToggle = document.getElementById('themeToggle');
+    themeToggle.addEventListener('click', function(){
+      const el = document.body;
+      const next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      el.setAttribute('data-theme', next);
+      try { localStorage.setItem('websheet:theme', next); } catch(e){}
+    });
+    (function(){ try{ const t = localStorage.getItem('websheet:theme'); if (t) document.body.setAttribute('data-theme', t); }catch(e){} })();
+
+    // Shortcuts modal
+    const modal = document.getElementById('modalShortcuts');
+    document.getElementById('ksHelp').addEventListener('click', ()=> modal.style.display = 'flex');
+    document.getElementById('closeModal').addEventListener('click', ()=> modal.style.display = 'none');
+    modal.addEventListener('click', (e)=> { if (e.target === modal) modal.style.display = 'none'; });
+	
+    // Keyboard shortcuts (Ctrl/Cmd + key)
+    document.addEventListener('keydown', function(e){
+      const isMod = e.ctrlKey || e.metaKey;
+      if (!isMod) return;
+      const key = e.key.toUpperCase();
+    
+      if (key === KEYBINDS.selectAll){
+        e.preventDefault();
+        selectAllRows();
+      } else if (key === KEYBINDS.deselectAll){   
+        e.preventDefault();
+        deselectAll();
+      } else if (key === KEYBINDS.selectHalf){
+        e.preventDefault();
+        const det = document.getElementById('deterministicHalf').checked;
+        selectFraction(0.5, det);
+      } else if (key === KEYBINDS.focusN){
+        e.preventDefault();
+        document.getElementById('selectCount').focus();
+      } else if (key === KEYBINDS.exportCsv){
+        e.preventDefault();
+        exportCsv();
+      } else if (key === KEYBINDS.toggleTheme){
+        e.preventDefault();
+        themeToggle.click();
+      }
+    });
+    
+    // Expose simple API
+    window.webSheet = {
+      loadRows(rows){ rowsData = Array.isArray(rows) ? rows : []; refreshTable(); },
+      getRows(){ return JSON.parse(JSON.stringify(rowsData)); },
+      selectAll: selectAllRows,
+      deselectAll: deselectAll,           // <- added
+      selectHalf: (deterministic=false)=> selectFraction(0.5, deterministic),
+      selectN: selectFirstN
+    };
+	//
+
+
+// Auto-load first file from saved recent files JSON in localStorage
+document.addEventListener('DOMContentLoaded', function() {
+  // Initialize table
+  rowsData = [];
+  refreshTable();
+  setStatus('Ready — choose file and click Process File');
+
+  // Auto-load first recent file if available
+  const recentFiles = getRecentFiles();
+  if (recentFiles.length > 0) {
+    const firstFile = recentFiles[0];
+    loadFileFromData(firstFile.name, firstFile.data);
+  }
+});
+
+  </script>
+  <script>
+const MAX_RECENT_FILES = 10;
+const STORAGE_KEY = 'recentFiles';
+
+// Load recent files from localStorage
+function getRecentFiles() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+}
+
+// Save recent files to localStorage
+function setRecentFiles(files) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(files.slice(0, MAX_RECENT_FILES)));
+}
+
+// Add a new file to recent list
+function addRecentFile(fileName, fileData) {
+  let files = getRecentFiles();
+  // Remove duplicate if exists
+  files = files.filter(f => f.name !== fileName);
+  // Add to start
+  files.unshift({ name: fileName, data: fileData });
+  setRecentFiles(files);
+}
+
+function showRecentFilesModal() {
+  const files = getRecentFiles();
+  if (!files.length) return alert("No recent files saved.");
+
+  const modal = document.createElement('div');
+  modal.style.position = 'fixed';
+  modal.style.inset = '0';
+  modal.style.background = 'rgba(0,0,0,0.35)';
+  modal.style.display = 'flex';
+  modal.style.justifyContent = 'center';
+  modal.style.alignItems = 'center';
+  modal.style.zIndex = '10000';
+
+  const panel = document.createElement('div');
+  panel.style.background = 'white';
+  panel.style.padding = '20px';
+  panel.style.borderRadius = '10px';
+  panel.style.maxWidth = '400px';
+  panel.style.width = '90%';
+
+  const title = document.createElement('h3');
+  title.innerText = 'Recent Files';
+  panel.appendChild(title);
+
+  const list = document.createElement('div');
+  panel.appendChild(list);
+
+  function renderList() {
+    list.innerHTML = '';
+    getRecentFiles().forEach((f, idx) => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.justifyContent = 'space-between';
+      row.style.alignItems = 'center';
+      row.style.margin = '4px 0';
+
+      const btn = document.createElement('button');
+      btn.innerText = f.name;
+      btn.style.flex = '1';
+      btn.style.marginRight = '6px';
+      btn.onclick = () => {
+        loadFileFromData(f.name, f.data);
+        document.body.removeChild(modal);
+      };
+      row.appendChild(btn);
+
+      const delBtn = document.createElement('button');
+      delBtn.innerText = '❌';
+      delBtn.title = 'Delete this recent file';
+      delBtn.style.flex = '0';
+      delBtn.onclick = (e) => {
+        e.stopPropagation(); // prevent loading file
+        let files = getRecentFiles();
+        files = files.filter(file => file.name !== f.name);
+        setRecentFiles(files);
+        renderList(); // update the list
+      };
+      row.appendChild(delBtn);
+
+      list.appendChild(row);
+    });
+  }
+
+  renderList();
+
+  const closeBtn = document.createElement('button');
+  closeBtn.innerText = 'Close';
+  closeBtn.style.marginTop = '10px';
+  closeBtn.onclick = () => document.body.removeChild(modal);
+  panel.appendChild(closeBtn);
+
+  modal.appendChild(panel);
+  document.body.appendChild(modal);
+}
+
+function loadFileFromData(fileName, data) {
+  // Directly process the file content without touching <input>
+  const parsed = parseText(data);
+  rowsData = parsed;
+  selectedRows.clear();
+  refreshTable();
+  setStatus(`Loaded file from recent: ${fileName} (${rowsData.length} rows)`);
+}
+// Process the file (your existing function)
+function processFile(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const content = e.target.result;
+    // Add to recent files
+    addRecentFile(file.name, content);
+    // Here, parse your file content to table
+    console.log('Loaded file:', file.name);
+    // TODO: your existing table loading logic
+  };
+  reader.readAsText(file);
+}
+
+// Load most recent file on page load
+window.addEventListener('DOMContentLoaded', () => {
+  const files = getRecentFiles();
+  if (files.length > 0) {
+    loadFileFromData(files[0].name, files[0].data);
+  }
+});
+
+// Hook file input
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+});
+
+// Add a button to view recent files
+const recentBtn = document.createElement('button');
+recentBtn.innerText = 'Recent Files';
+recentBtn.onclick = showRecentFilesModal;
+document.querySelector('.controls').appendChild(recentBtn);
+
+// Add a button to download recent files as JSON
+const saveRecentBtn = document.createElement('button');
+saveRecentBtn.innerText = 'Save Recent Files';
+saveRecentBtn.onclick = () => {
+  const files = getRecentFiles();
+  if (!files.length) return alert('No recent files to save.');
+
+  const blob = new Blob([JSON.stringify(files, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'recent-files.json';
+  a.click();
+  URL.revokeObjectURL(url);
+};
+document.querySelector('.controls').appendChild(saveRecentBtn);
+
+// Optional: Load a .json file of recent files
+const loadRecentJsonInput = document.createElement('input');
+loadRecentJsonInput.type = 'file';
+loadRecentJsonInput.accept = '.json';
+loadRecentJsonInput.style.display = 'none';
+loadRecentJsonInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const loadedFiles = JSON.parse(e.target.result);
+      if (!Array.isArray(loadedFiles)) throw new Error('Invalid JSON structure');
+      setRecentFiles(loadedFiles);
+
+      if (loadedFiles.length > 0) {
+        // Auto-load the first file from the loaded JSON
+        loadFileFromData(loadedFiles[0].name, loadedFiles[0].data);
+      }
+
+      alert('Recent files imported successfully!');
+    } catch(err) {
+      console.error(err);
+      alert('Failed to load JSON file');
+    }
+  };
+  reader.readAsText(file);
+});
+
+document.body.appendChild(loadRecentJsonInput);
+
+// Add a button to trigger loading JSON
+const loadRecentJsonBtn = document.createElement('button');
+loadRecentJsonBtn.innerText = 'Load Recent JSON';
+loadRecentJsonBtn.onclick = () => loadRecentJsonInput.click();
+document.querySelector('.controls').appendChild(loadRecentJsonBtn);
+</script>
+</body>
+</html>
